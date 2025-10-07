@@ -16,10 +16,11 @@ const safeRequire = (name) => {
   }
 };
 
-const Ajv = safeRequire('ajv');
-const betterAjvErrors = safeRequire('better-ajv-errors');
+const Ajv = safeRequire('ajv').default;
+const betterAjvErrors = safeRequire('better-ajv-errors').default;
 const chalk = safeRequire('chalk');
 const YAML = safeRequire('yaml');
+const addFormats = safeRequire('ajv-formats');
 
 // https://www.peterbe.com/plog/nodejs-fs-walk-or-glob-or-fast-glob
 function walk(directory, ext, filepaths = []) {
@@ -49,37 +50,11 @@ class Validator {
     this.schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
     this.ajv = new Ajv({
       // allErrors: true,
-      jsonPointers: true,
-      extendRefs: true, // should be 'fail' with ajv v7
-      strictKeywords: true,
+      strict: true,
     });
+    addFormats(this.ajv);
 
     this.mappingPattern = /^([a-z]+)By(Fragment|Name|URL)$/;
-    this.commentPrefix = /^ *# *Last Updated/i;
-    this.commentPattern = /^#( *)Last Updated ((?:Jan|Febr)uary|March|April|May|June|July|August|(?:Septem|Octo|Novem|Decem)ber) (0[1-9]|[1-3]\d), (\d{4})$/;
-
-    if (!!this.ajv.getKeyword('deprecated')) {
-      this.ajv.removeKeyword('deprecated');
-    }
-
-    this.ajv.addKeyword('deprecated', {
-      validate: function v(schema, data, parentSchema, dataPath, parentData, parentPropertyName) {
-        if (schema) {
-          v.errors = [{
-            keyword: 'deprecated',
-            message: (
-              parentSchema.description
-                ? parentSchema.description.replace('[DEPRECATED] ', '')
-                : `\`${parentPropertyName}\` is deprecated`
-            ),
-            params: { keyword: 'deprecated' },
-            dataPath,
-          }];
-        }
-        return !schema;
-      },
-      valid: (this.allowDeprecations ? true : undefined),
-    });
   }
 
   run(files) {
@@ -133,44 +108,6 @@ class Validator {
       if (!valid) {
         const output = betterAjvErrors('scraper', data, validate.errors, { indent: 2 });
         console.log(output);
-      }
-
-      // Verify that there is a "Last Updated" comment
-      if (valid) {
-        const lines = contents
-          .split(/\r?\n/g)
-          .slice(-5)
-          .reverse()
-          .filter(line => !!line.trim());
-
-        const commentLine = lines.findIndex(line => this.commentPrefix.test(line));
-        let validComment = false;
-        if (commentLine === -1) {
-          console.error(chalk.red(`${chalk.bold('ERROR')} 'Last Updated' comment is missing.`));
-        } else {
-          if (commentLine !== 0) {
-            console.error(chalk.red(`${chalk.bold('ERROR')} 'Last Updated' comment is not the last line.`));
-          }
-
-          const comment = lines[commentLine];
-          const match = comment.trim().match(this.commentPattern);
-          if (!match) {
-            console.error(chalk.red(`${chalk.bold('ERROR')} 'Last Updated' comment's format is invalid: ${comment}`));
-          } else {
-            // Validate leading spaces (trailing spaces are ignored)
-            const leadingSpaces = comment != comment.trimLeft();
-            if (leadingSpaces) {
-              console.error(chalk.red(`${chalk.bold('ERROR')} Remove leading spaces: '${comment}'`));
-            }
-            // Validate spacing between '#' and 'Last Updated'
-            if (match[1] !== ' ') {
-              console.error(chalk.red(`${chalk.bold('ERROR')} Missing single space between '#' and 'Last Updated': ${comment}`));
-            } else {
-              validComment = true;
-            }
-          }
-        }
-        valid = valid && validComment;
       }
 
       if (this.verbose || !valid) {
@@ -366,28 +303,6 @@ class Validator {
         dataPath: '/stashServer',
       });
     }
-
-    xPathScrapers.forEach((name) => {
-      if (!configuredXPathScrapers.includes(name)) {
-        errors.unshift({
-          keyword: name,
-          message: `unused XPath scraper: \`${name}\``,
-          params: { keyword: name },
-          dataPath: `/xPathScrapers/${name}`,
-        });
-      }
-    });
-
-    jsonScrapers.forEach((name) => {
-      if (!configuredJsonScrapers.includes(name)) {
-        errors.unshift({
-          keyword: name,
-          message: `unused JSON scraper: \`${name}\``,
-          params: { keyword: name },
-          dataPath: `/jsonScrapers/${name}`,
-        });
-      }
-    });
 
     return errors;
   }

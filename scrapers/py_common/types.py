@@ -4,28 +4,61 @@ from typing import Literal, Required, TypedDict
 Types for outputs that scrapers can produce and that Stash will accept
 """
 
+# export specific types for eternal inclusion
+type Ethnicity = Literal[
+    "CAUCASIAN",
+    "BLACK",
+    "ASIAN",
+    "INDIAN",
+    "LATIN",
+    "MIDDLE_EASTERN",
+    "MIXED",
+    "OTHER",
+]
+
+type EyeColor = Literal["BLUE", "BROWN", "GREEN", "GREY", "HAZEL", "RED"]
+type HairColor = Literal[
+    "BLONDE",
+    "BRUNETTE",
+    "BLACK",
+    "RED",
+    "AUBURN",
+    "GREY",
+    "BALD",
+    "VARIOUS",
+    "OTHER",
+]
+
 class ScrapedTag(TypedDict):
     name: str
     "Name is the only required field"
+
 
 class ScrapedPerformer(TypedDict, total=False):
     name: Required[str]
     "Name is the only required field"
     disambiguation: str
     "This is only added through Tagger view"
-    gender: Literal["MALE", "FEMALE", "TRANSGENDER_MALE", "TRANSGENDER_FEMALE", "INTERSEX", "NON_BINARY"]
-    url: str
+    gender: Literal[
+        "MALE",
+        "FEMALE",
+        "TRANSGENDER_MALE",
+        "TRANSGENDER_FEMALE",
+        "INTERSEX",
+        "NON_BINARY",
+    ]
+    urls: list[str]
     twitter: str
     instagram: str
     birthdate: str
     "Must be in the format YYYY-MM-DD"
     death_date: str
     "Must be in the format YYYY-MM-DD"
-    ethnicity: Literal["CAUCASIAN", "BLACK", "ASIAN", "INDIAN", "LATIN", "MIDDLE_EASTERN", "MIXED", "OTHER"]
+    ethnicity: Ethnicity
     country: str
     "Not validated"
-    eye_color: Literal["BLUE", "BROWN", "GREEN", "GREY", "HAZEL", "RED"]
-    hair_color: Literal["BLONDE", "BRUNETTE", "BLACK", "RED", "AUBURN", "GREY", "BALD", "VARIOUS", "OTHER"]
+    eye_color: EyeColor
+    hair_color: HairColor
     "Hair color, can be 'VARIOUS' or 'OTHER' if the performer has multiple hair colors"
     height: str
     "Height in centimeters"
@@ -43,19 +76,22 @@ class ScrapedPerformer(TypedDict, total=False):
     "Must be comma-delimited in order to be parsed correctly"
     tags: list[ScrapedTag]
     image: str
+    "The 'image' field is deprecated, use 'images' instead"
     images: list[str]
     "Images can be URLs or base64-encoded images"
     details: str
+
 
 class ScrapedStudio(TypedDict, total=False):
     name: Required[str]
     "Name is the only required field"
     url: str
-    parent: 'ScrapedStudio'
+    parent: "ScrapedStudio"
     image: str
 
+
 class ScrapedMovie(TypedDict, total=False):
-    name: Required[str]
+    name: str
     date: str
     "Must be in the format YYYY-MM-DD"
     duration: str
@@ -66,11 +102,13 @@ class ScrapedMovie(TypedDict, total=False):
     rating: str
     front_image: str
     back_image: str
-    URL: str
+    url: str
     aliases: str
+    tags: list[ScrapedTag]
+
 
 class ScrapedGallery(TypedDict, total=False):
-    title: Required[str]
+    title: str
     details: str
     url: str
     urls: list[str]
@@ -79,6 +117,9 @@ class ScrapedGallery(TypedDict, total=False):
     studio: ScrapedStudio
     tags: list[ScrapedTag]
     performers: list[ScrapedPerformer]
+    code: str
+    photographer: str
+
 
 class ScrapedScene(TypedDict, total=False):
     title: str
@@ -94,12 +135,27 @@ class ScrapedScene(TypedDict, total=False):
     code: str
     director: str
 
+
+class ScrapedImage(TypedDict, total=False):
+    title: str
+    details: str
+    urls: list[str]
+    date: str
+    studio: ScrapedStudio
+    galleries: list[ScrapedGallery]
+    performers: list[ScrapedPerformer]
+    tags: list[ScrapedTag]
+    code: str
+    photographer: str
+
+
 # Technically we can return a full ScrapedPerformer but the current UI only
 # shows the name. The URL is absolutely necesserary for the result to be used
 # in the next step: actually scraping the performer
 class PerformerSearchResult(TypedDict):
     name: str
     url: str
+
 
 # Technically we can return a full ScrapedScene but the current UI only
 # shows the name, image, studio, tags and performers. The URL is absolutely
